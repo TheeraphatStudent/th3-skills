@@ -5,7 +5,7 @@ description: Use this skill whenever the user wants Claude Code to build a proof
 
 # PoC Spec-Driven Builder
 
-Turns a loosely-described idea into a working, evidence-backed proof of concept — research → spec (SRS) → test matrix → implementation → verification → PR — run end-to-end without interrupting the user for clarification. Ambiguity is resolved by making the most reasonable assumption and logging it, not by asking.
+Turns a loosely-described idea into a working, evidence-backed proof of concept — research → spec (SRS) → test matrix → implementation → verification → PR — run end-to-end without interrupting the user for cla~rification. Ambiguity is resolved by making the most reasonable assumption and logging it, not by asking.
 
 This mirrors how modern AI coding agents are meant to work: specs and tests are the source of truth the agent builds *to*, not decisions made ad hoc while writing code. A PoC only proves something if what it's proving was written down first.
 
@@ -84,8 +84,7 @@ Fundamentals to hold to while writing this, regardless of domain:
 The SRS's Purpose and Scope sections (§1–2) are already a ready-made ticket description — use them directly instead of writing a separate summary.
 
 1. Create one ticket in the tracker selected in Step 0.5 (`createJiraIssue`, `create_item`, or `gh issue create` — whichever applies), titled after the SRS's project name, body = SRS §1 Purpose + §2 Scope. Capture the ticket's identifier exactly as the tracker returns it (Jira key like `PROJ-123`, Monday item ID, or GitHub issue number like `42`) — this is `<TICKET-ID>` for every step below.
-2. Ensure a `dev` branch exists off `main` (create and push it if this is the first feature in the repo — most repos already have one, so check before creating).
-3. Branch `feat/<TICKET-ID>-<slug>` off `dev`, where `<slug>` is a short kebab-case description of the feature (e.g. `feat/PROJ-123-csv-export`). Do all work in Steps 3–5 on this branch.
+2. Run `scripts/ensure_branches.sh <TICKET-ID> <slug>`, where `<slug>` is a short kebab-case description of the feature (e.g. `ensure_branches.sh PROJ-123 csv-export`). It creates `dev` off the repo's default branch if `dev` doesn't exist yet (pushing it), then cuts and checks out `feat/<TICKET-ID>-<slug>` off `dev` — refusing to run if that branch already exists locally, so it never silently clobbers in-progress work. Do all work in Steps 3–5 on the branch it leaves you on.
 
 If ticket creation fails (auth expired, tracker down), don't let that block the PoC itself — log it as a noted limitation in the SRS's Assumptions section, branch off `dev` using a `feat/poc-<slug>` fallback name, and continue. The PR in Step 6 just won't have a ticket number to reference.
 
@@ -126,7 +125,7 @@ Once Step 4's tests pass and Step 5's report is written:
 
 1. Commit the SRS, test plan/files, and implementation on the `feat/<TICKET-ID>-<slug>` branch (if not already committed incrementally during Step 4).
 2. Push the branch: `git push -u origin feat/<TICKET-ID>-<slug>`.
-3. Open the PR against `dev` (not `main` — features land on `dev` first): `gh pr create --base dev --title "feat: <TICKET-ID>-<what the feature does>" --body "<link/summary of the SRS success criteria and Step 5's report>"`.
+3. Open the PR against `dev` (not `main` — features land on `dev` first): `gh pr create --base dev --title "feat: <TICKET-ID>-<what the feature does>" --body "<link/summary of the SRS success criteria and Step 5's report>"`. If the tracker is GitHub Issues, start the body with `Closes #<TICKET-ID>` so merging the PR auto-closes the ticket — Jira/Monday.com have no equivalent auto-link, so for those just reference the ticket ID in the body text.
 
 The PR title is intentionally the same shape as the ticket + one-line description, so anyone scanning the PR list can trace it straight back to the ticket. If Step 2.5 fell back to `feat/poc-<slug>` (no ticket), the PR title drops the ticket segment: `feat: <what the feature does>`.
 
