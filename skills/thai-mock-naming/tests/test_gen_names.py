@@ -210,6 +210,51 @@ def test_sql_escapes_single_quotes():
     assert "''" in g.emit_sql(rows, "t")
 
 
+@pytest.mark.parametrize("name", [
+    "users", "mock_users", "t1", "_private", "public.users",
+])
+def test_sql_identifiers_accepts_valid_names(name):
+    assert g.quote_sql_identifier(name) == name
+
+
+@pytest.mark.parametrize("name", [
+    "users; DROP TABLE students",
+    "users--",
+    "users'",
+    'users"',
+    "users WHERE 1=1",
+    "1users",
+    "",
+    "a.b.c",
+    "ตาราง",
+    "users)",
+])
+def test_sql_identifiers_rejects_anything_that_could_carry_syntax(name):
+    with pytest.raises(ValueError):
+        g.quote_sql_identifier(name)
+
+
+def test_emit_sql_rejects_an_unsafe_table_name():
+    rows = g.gen_people(1, random.Random(0))
+    with pytest.raises(ValueError):
+        g.emit_sql(rows, "users; DROP TABLE users")
+
+
+def test_sql_literal_quoting():
+    assert g.quote_sql_literal("plain") == "'plain'"
+    assert g.quote_sql_literal("it's") == "'it''s'"
+    assert g.quote_sql_literal("a\x00b") == "'ab'", "NUL must be dropped"
+    # Backslash is not a standard-SQL escape and must pass through untouched.
+    assert g.quote_sql_literal("back\\slash") == "'back\\slash'"
+
+
+def test_sql_output_has_balanced_quotes():
+    rows = g.gen_people(20, random.Random(0), with_id=True, with_contact=True)
+    for line in g.emit_sql(rows, "users").splitlines():
+        assert line.count("'") % 2 == 0, line
+        assert line.startswith("INSERT INTO users (") and line.endswith(");")
+
+
 def test_emitters_handle_empty_input():
     for fn in (g.emit_table, g.emit_csv, g.emit_json):
         fn([])
