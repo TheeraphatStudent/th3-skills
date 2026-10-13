@@ -1,0 +1,16 @@
+# Paths the mock-name linter should skip.
+# One glob per line; `#` starts a comment.
+#
+# This skill's own files necessarily CONTAIN the blocklist — the reference
+# docs document which names not to use, and the linter hardcodes them. Those
+# are the one legitimate place for สมชาย ใจดี to appear.
+
+.mocknamesignore
+references/name-bank.md
+references/edge-cases.md
+references/identity-fields.md
+SKILL.md
+README.md
+CHANGELOG.md
+scripts/check_mock_names.py
+tests/
