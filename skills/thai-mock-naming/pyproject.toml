@@ -1,0 +1,25 @@
+[project]
+name = "thai-mock-naming"
+version = "1.0.0"
+description = "Thai mock names that are unmistakably fake, greppable, and still exercise real Thai text handling."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "Theeraphat", email = "th33raphat@gmail.com" }]
+keywords = ["thai", "mock-data", "test-data", "fixtures", "seed-data", "pdpa", "claude-skill"]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[project.urls]
+Homepage = "https://github.com/TheeraphatStudent/th3-skills"
+Source = "https://github.com/TheeraphatStudent/th3-skills/tree/main/skills/thai-mock-naming"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"
