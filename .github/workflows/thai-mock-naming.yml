@@ -1,0 +1,108 @@
+name: thai-mock-naming
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'skills/thai-mock-naming/**'
+      - '.github/workflows/thai-mock-naming.yml'
+  pull_request:
+    paths:
+      - 'skills/thai-mock-naming/**'
+      - '.github/workflows/thai-mock-naming.yml'
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: skills/thai-mock-naming
+
+jobs:
+  test:
+    name: pytest (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: python -m pip install --upgrade pip pytest
+
+      - name: Run tests
+        run: python -m pytest -q
+
+  lint-self:
+    name: linter finds nothing in its own skill
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Scan the skill directory
+        run: python3 scripts/check_mock_names.py .
+
+      - name: Generated output must never trip the linter
+        run: |
+          set -euo pipefail
+          python3 scripts/gen_names.py --count 200 --with-id --with-contact \
+            --format csv --seed 1 > /tmp/gen.csv
+          python3 scripts/gen_names.py --count 60 --roles --titles \
+            --format csv --seed 2 >> /tmp/gen.csv
+          python3 scripts/gen_names.py --count 40 --companies \
+            --format csv --seed 3 >> /tmp/gen.csv
+          python3 scripts/gen_names.py --edge-cases --format csv >> /tmp/gen.csv
+          python3 scripts/check_mock_names.py /tmp/gen.csv
+
+      - name: Linter must still catch the names it exists to catch
+        run: |
+          set -euo pipefail
+          printf "VALUES ('%s','%s');\n" "สมชาย" "ใจดี" > /tmp/bad.sql
+          if python3 scripts/check_mock_names.py /tmp/bad.sql --quiet; then
+            echo "::error::linter failed to flag สมชาย ใจดี"
+            exit 1
+          fi
+          echo "linter correctly flagged the blocklisted name"
+
+  scripts-run:
+    name: every CLI mode exits clean
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Exercise the generator CLI
+        run: |
+          set -euo pipefail
+          for args in \
+            "--count 5" \
+            "--count 5 --format json" \
+            "--count 5 --format csv" \
+            "--count 5 --format sql --table users" \
+            "--count 5 --roles --titles" \
+            "--count 5 --with-id --with-contact" \
+            "--count 5 --companies" \
+            "--count 5 --thai-digits" \
+            "--edge-cases" ; do
+            echo "::group::gen_names.py $args"
+            python3 scripts/gen_names.py $args > /dev/null
+            echo "::endgroup::"
+          done
+
+      - name: Determinism
+        run: |
+          set -euo pipefail
+          a=$(python3 scripts/gen_names.py -n 30 --with-id --seed 42 -f csv | sha256sum)
+          b=$(python3 scripts/gen_names.py -n 30 --with-id --seed 42 -f csv | sha256sum)
+          test "$a" = "$b" || { echo "::error::--seed is not deterministic"; exit 1; }
