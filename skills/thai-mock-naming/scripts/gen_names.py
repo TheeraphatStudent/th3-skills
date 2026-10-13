@@ -18,6 +18,7 @@ import csv
 import io
 import json
 import random
+import re
 import sys
 
 # ---------------------------------------------------------------- token banks
@@ -222,7 +223,7 @@ def _dwidth(s):
 def _combining(ch):
     o = ord(ch)
     # Thai above/below vowels and tone marks, plus ZWSP
-    return (0x0E31 == o or 0x0E34 <= o <= 0x0E3A or 0x0E47 <= o <= 0x0E4E
+    return (o == 0x0E31 or 0x0E34 <= o <= 0x0E3A or 0x0E47 <= o <= 0x0E4E
             or o == 0x200B)
 
 
@@ -244,16 +245,46 @@ def emit_csv(rows):
     return buf.getvalue().rstrip("\n")
 
 
+# A SQL identifier: a bare name, or schema-qualified. Anything else is
+# rejected rather than escaped — this tool builds statements as text, so the
+# table name must never be able to carry syntax of its own.
+SQL_IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$")
+
+
+def quote_sql_identifier(name):
+    """Validate a table or column name, or raise ValueError."""
+    if not SQL_IDENT.match(str(name)):
+        raise ValueError(
+            "unsafe SQL identifier: {!r} (expected letters, digits and "
+            "underscores, optionally schema-qualified)".format(name))
+    return str(name)
+
+
+def quote_sql_literal(value):
+    """Quote a value as a SQL string literal.
+
+    Doubles single quotes per the SQL standard and drops NUL, which no
+    engine accepts inside a literal. Backslash is left alone: it is not an
+    escape character in standard SQL, and doubling it would corrupt the data
+    on PostgreSQL. On MySQL, run with NO_BACKSLASH_ESCAPES or import the CSV
+    output instead.
+    """
+    text = str(value).replace("\x00", "")
+    return "'" + text.replace("'", "''") + "'"
+
+
 def emit_sql(rows, table):
     if not rows:
         return ""
-    cols = [c for c in rows[0].keys() if c != "note"]
+    table = quote_sql_identifier(table)
+    cols = [quote_sql_identifier(c) for c in rows[0] if c != "note"]
+    col_list = ", ".join(cols)
     lines = []
     for r in rows:
-        vals = ", ".join(
-            "'" + str(r.get(c, "")).replace("'", "''") + "'" for c in cols)
-        lines.append("INSERT INTO {} ({}) VALUES ({});".format(
-            table, ", ".join(cols), vals))
+        vals = ", ".join(quote_sql_literal(r.get(c, "")) for c in cols)
+        # Identifiers are validated above and values are quoted literals.
+        stmt = "INSERT INTO {} ({}) VALUES ({});".format(table, col_list, vals)  # noqa: S608  # nosec B608  # NOSONAR - identifiers validated, values quoted
+        lines.append(stmt)
     return "\n".join(lines)
 
 
@@ -290,7 +321,13 @@ def main(argv=None):
                    help="emit the QA stress-test set instead of normal names")
     args = p.parse_args(argv)
 
-    rng = random.Random(args.seed)
+    # A seedable PRNG is the correct choice here, not a weakness. Everything
+    # this tool emits is deliberately fake and deliberately public, and
+    # `--seed` exists so regenerating a fixture produces a stable diff rather
+    # than churn. `secrets` would make that impossible and protects nothing:
+    # there is no secret to protect in a row that announces itself as a test
+    # record. Security scanners flag the import on sight, hence the markers.
+    rng = random.Random(args.seed)  # noqa: S311  # nosec B311  # NOSONAR - mock data
 
     if args.edge_cases:
         rows = gen_edge_cases()
@@ -302,7 +339,11 @@ def main(argv=None):
                           with_id=args.with_id, with_contact=args.with_contact)
 
     if args.format == "sql":
-        print(emit_sql(rows, args.table))
+        try:
+            out = emit_sql(rows, args.table)
+        except ValueError as exc:
+            p.error(str(exc))  # exits 2 with a clean message, no traceback
+        print(out)
     else:
         print(EMITTERS[args.format](rows))
 
