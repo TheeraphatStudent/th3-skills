@@ -13,6 +13,7 @@ npx skills@latest add TheeraphatStudent/th3-skills --skill poc-spec-driven-build
 - [`poc-spec-driven-builder`](skills/poc-spec-driven-builder/SKILL.md) — builds a proof of concept end-to-end: research → SRS → test matrix → implementation → verification, run autonomously without pausing for clarification.
 - [`thai-mock-naming`](skills/thai-mock-naming/README.md) — Thai mock names that are unmistakably fake, greppable in a database, and still exercise real Thai text handling. Replaces สมชาย ใจดี / สมหญิง พอใจ with marker names like ทดสอบ นามสมมุติ. Ships a generator and a linter.
 - [`doc-style-builder`](skills/doc-style-builder/SKILL.md) — documents any work product (API, deploy, system, release) in one house style: seven document skeletons, a TH Sarabun theme with change highlighting, and Markdown → PDF + DOCX in one command.
+- [`pdf-operations`](skills/pdf-operations/SKILL.md) — PDF manipulation with `pdf-lib`: merging multiple PDFs into one, splitting a PDF into pages, extracting/reordering pages, rotating pages, and drawing overlays. Migrated from `pdf-kit-skills`.
 
 - [`podman-disk-reclaim`](skills/podman-disk-reclaim/SKILL.md) — reclaims Podman disk space on Windows, macOS and Linux: prunes unused images, runs `fstrim` in the Podman machine, and on Windows compacts the WSL `ext4.vhdx` so the space actually returns to the host. One stdlib-only Python script, `--dry-run` first.
 
